@@ -149,7 +149,10 @@ def sample_images(epoch, image_grid_rows=4, image_grid_columns=4):
     if not os.path.exists('./images/{}'.format(directory)):
         os.makedirs('./images/{}'.format(directory))
     filename = './images/{}/sample_{}.png'.format(directory, epoch)
-        
+
+    f = open('./images/{}/{}'.format(directory, word), 'w+')
+    f.close()
+    
     plt.savefig(filename)
     plt.close('all')
 
@@ -207,7 +210,6 @@ while(True):
     except:
         print("That didn't work, try another one.")
 data = process_source('tiny-imagenet-200', directory)
-        
 
 ## Set up training
 
