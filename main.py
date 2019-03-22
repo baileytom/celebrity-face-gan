@@ -6,6 +6,8 @@ from keras.layers.convolutional import Conv2D, Conv2DTranspose
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 import matplotlib.pyplot as plt
+import signal
+import sys
 import numpy as np
 import os
 import pathlib
@@ -158,6 +160,14 @@ def process_source(root, directory):
     images = [image_to_np(image) for image in image_paths]
     return np.array(images)
 
+def signal_handler(sig, frame):
+    if not os.path.exists('./models'):
+        os.makedirs('./models')
+    discriminator.save_weights('models/{}_d.h5'.format(directory))
+    generator.save_weights('models/{}_g.h5'.format(directory))
+    print("Saved weights.")
+    sys.exit(0)
+    
 # Read the imagenet sources to easily select a set of images
 def read_sources():
     # Get the list of words that correspond to each directory
@@ -177,6 +187,8 @@ def read_sources():
         for word in dir_map[name]:
             word_map[word] = name
     return word_map
+
+signal.signal(signal.SIGINT, signal_handler)
 
 ## Get the user's input
 
@@ -203,7 +215,19 @@ discriminator = discriminator(img_shape)
 discriminator.compile(loss='binary_crossentropy', 
                       optimizer=Adam(), metrics=['accuracy'])
 
+try:
+    discriminator.load_weights('models/{}_d.h5'.format(directory))
+    print('Loaded discriminator weights.')
+except:
+    pass
+
 generator = generator(z_dim)
+
+try:
+    generator.load_weights('models/{}_g.h5'.format(directory))
+    print('Loaded generator weights.')
+except:
+    pass
 
 z = Input(shape=(100,))
 img = generator(z)
