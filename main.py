@@ -1,4 +1,3 @@
-
 from keras.datasets import mnist, cifar10
 from keras.layers import Input, Dense, Reshape, Flatten, Dropout
 from keras.layers import BatchNormalization, Activation, ZeroPadding2D
@@ -27,13 +26,13 @@ def image_to_np(filename):
     image = cv2.resize(image, dsize=(img_rows, img_cols), interpolation=cv2.INTER_CUBIC)
     return image/127.5-1
 
-def generator(img_shape, z_dim):
+# Definition of generator
+def generator(z_dim):
     sx, sy = np.int(img_rows/4), np.int(img_cols/4)
     
     model = Sequential()
     model.add(Dense(256 * sx * sy, input_dim=z_dim))
     model.add(Reshape((sx, sy, 256)))
-
     model.add(Conv2DTranspose(
                 128, kernel_size=3, strides=2, padding='same'))
     model.add(BatchNormalization())
@@ -49,6 +48,7 @@ def generator(img_shape, z_dim):
     img = model(z)
     return Model(z, img)
 
+# Definition of discriminator
 def discriminator(img_shape):
     model = Sequential()
     model.add(Conv2D(32, kernel_size=3, strides=2, 
@@ -68,13 +68,7 @@ def discriminator(img_shape):
     prediction = model(img)
     return Model(img, prediction)
 
-def filter_by_category(xt, yt, i):
-    result = []
-    for x, y in zip(xt, yt):
-        if y in i:
-            result.append(x)
-    return np.array(result) 
-
+# Create noisy labels
 def noisy_labels(label, batch_size):
     mislabeled = batch_size // 10
     labels = []
@@ -90,7 +84,8 @@ def noisy_labels(label, batch_size):
 
 def train(X_train, epochs, batch_size, sample_interval):
 
-    # Noisy labels
+    # Noisy labels effectively handicap the discriminator,
+    # giving the generator a chance to learn.
     ones = noisy_labels(1, batch_size)
     zeros = noisy_labels(0, batch_size)
 
@@ -115,7 +110,7 @@ def train(X_train, epochs, batch_size, sample_interval):
         # Generator loss
         g_loss = combined.train_on_batch(z, ones)
 
-        print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+        print ('%d [D loss: %f, acc.: %.2f%%] [G loss: %f]' % (epoch, d_loss[0], 100*d_loss[1], g_loss))
 
         losses.append((d_loss[0], g_loss))
         accuracies.append(100*d_loss[1])
@@ -145,17 +140,16 @@ def sample_images(epoch, image_grid_rows=4, image_grid_columns=4):
         except:
             image = np.reshape(image, [img_cols, img_rows])
 
-        plt.imshow(image, cmap="gray")
+        plt.imshow(image, cmap='gray')
         plt.axis('off')
     plt.tight_layout()
-            
-    if not os.path.exists("./images"):
-        os.makedirs("./images")
-    filename = "./images/sample_%d.png" % epoch
+
+    if not os.path.exists('./images/{}'.format(directory)):
+        os.makedirs('./images/{}'.format(directory))
+    filename = './images/{}/sample_{}.png'.format(directory, epoch)
         
     plt.savefig(filename)
-    plt.close("all")
-
+    plt.close('all')
 
 def process_source(root, directory):
     data_root = pathlib.Path('./{}'.format(root))
@@ -163,18 +157,53 @@ def process_source(root, directory):
     image_paths = list(image_root.glob('*.JPEG'))
     images = [image_to_np(image) for image in image_paths]
     return np.array(images)
-    
-#=================================================================
-    
-epochs = 1000000
-batch_size = 32
-sample_interval = 500
+
+# Read the imagenet sources to easily select a set of images
+def read_sources():
+    # Get the list of words that correspond to each directory
+    f = open('tiny-imagenet-200/words.txt', 'r')
+    words = f.readlines()
+    dir_map = {}
+    for line in words:
+        line = line.split("\t")
+        directory = line[0]
+        tags = line[1].strip().split(', ')
+        dir_map[directory] = tags
+    # Get the list of directories we have access to & reverse map every word
+    word_map = {}
+    data_root = pathlib.Path('./tiny-imagenet-200/train/')
+    for child in data_root.iterdir():
+        name = str(child.name)
+        for word in dir_map[name]:
+            word_map[word] = name
+    return word_map
+
+## Get the user's input
+
+source_map = read_sources()
+directory = None
+word = None
+
+print("\n\n\n\nThese are the tags you can target:\n\n")
+print(list(source_map.keys()))
+
+while(True):
+    try:
+        word = input("Pick one: ")
+        directory = source_map[word]
+        break
+    except:
+        print("That didn't work, try another one.")
+data = process_source('tiny-imagenet-200', directory)
+        
+
+## Set up training
 
 discriminator = discriminator(img_shape)
 discriminator.compile(loss='binary_crossentropy', 
                       optimizer=Adam(), metrics=['accuracy'])
 
-generator = generator(img_shape, z_dim)
+generator = generator(z_dim)
 
 z = Input(shape=(100,))
 img = generator(z)
@@ -186,6 +215,9 @@ prediction = discriminator(img)
 combined = Model(z, prediction)
 combined.compile(loss='binary_crossentropy', optimizer=Adam())
 
-data = process_source("tiny-imagenet-200", "n01443537")
+epochs = 1000000
+batch_size = 32
+sample_interval = 1000
 
+## Train
 train(data, epochs, batch_size, sample_interval)
