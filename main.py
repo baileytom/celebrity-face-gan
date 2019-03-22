@@ -74,7 +74,7 @@ def filter_by_category(xt, yt, i):
             result.append(x)
     return np.array(result) 
 
-def train(X_train, epochs, batch_size, sample_interval, categories):
+def train(X_train, epochs, batch_size, sample_interval):
     ones = np.ones((batch_size, 1))
     zeros = np.zeros((batch_size, 1))
 
@@ -170,20 +170,9 @@ prediction = discriminator(img)
 combined = Model(z, prediction)
 combined.compile(loss='binary_crossentropy', optimizer=Adam())
 
-#0 airplane
-#1 automobile
-#2 bird
-#3 cat
-#4 deer
-#5 dog
-#6 frog
-#7 horse
-#8 ship
-#9 truck
-
 data = process_source("tiny-imagenet-200", "n01443537")
 
 print(data.shape)
 input()
 
-train(data, epochs, batch_size, sample_interval, categories=[7])
+train(data, epochs, batch_size, sample_interval)
