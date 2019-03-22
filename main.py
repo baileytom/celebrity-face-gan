@@ -1,3 +1,4 @@
+
 from keras.datasets import mnist, cifar10
 from keras.layers import Input, Dense, Reshape, Flatten, Dropout
 from keras.layers import BatchNormalization, Activation, ZeroPadding2D
@@ -74,9 +75,24 @@ def filter_by_category(xt, yt, i):
             result.append(x)
     return np.array(result) 
 
+def noisy_labels(label, batch_size):
+    mislabeled = batch_size // 10
+    labels = []
+    if label:
+        labels = np.concatenate([
+            np.random.normal(0.7, 1, batch_size-mislabeled),
+            np.random.normal(0, 0.3, mislabeled)], axis=0)
+    else:
+        labels = np.concatenate([
+            np.random.normal(0, 0.3, batch_size-mislabeled),
+            np.random.normal(0.7, 1, mislabeled)], axis=0)
+    return np.array(labels)
+
 def train(X_train, epochs, batch_size, sample_interval):
-    ones = np.ones((batch_size, 1))
-    zeros = np.zeros((batch_size, 1))
+
+    # Noisy labels
+    ones = noisy_labels(1, batch_size)
+    zeros = noisy_labels(0, batch_size)
 
     for epoch in range(epochs):
         
@@ -152,7 +168,7 @@ def process_source(root, directory):
     
 epochs = 1000000
 batch_size = 32
-sample_interval = 1000
+sample_interval = 500
 
 discriminator = discriminator(img_shape)
 discriminator.compile(loss='binary_crossentropy', 
@@ -171,8 +187,5 @@ combined = Model(z, prediction)
 combined.compile(loss='binary_crossentropy', optimizer=Adam())
 
 data = process_source("tiny-imagenet-200", "n01443537")
-
-print(data.shape)
-input()
 
 train(data, epochs, batch_size, sample_interval)
