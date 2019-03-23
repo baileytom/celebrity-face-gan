@@ -12,6 +12,7 @@ import numpy as np
 import os
 import pathlib
 import cv2
+import time
 
 # Disables warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -23,6 +24,7 @@ img_cols = 64
 channels = 3
 img_shape = (img_rows, img_cols, channels)
 z_dim = 100
+timestamp = time.time()
 
 # Take an image filename & return the normalized numpy array
 def image_to_np(filename):
@@ -36,14 +38,22 @@ def generator(z_dim):
     sx, sy = np.int(img_rows/4), np.int(img_cols/4)
     
     model = Sequential()
-    model.add(Dense(256 * sx * sy, input_dim=z_dim))
+    model.add(Dense(512 * sx * sy, input_dim=z_dim))
     model.add(Reshape((sx, sy, 256)))
     model.add(Conv2DTranspose(
-                128, kernel_size=3, strides=2, padding='same'))
+                256, kernel_size=3, strides=2, padding='same'))
+    model.add(BatchNormalization())
+    model.add(LeakyReLU(alpha=0.01))
+    model.add(Conv2DTranspose(
+                128, kernel_size=3, strides=1, padding='same'))
     model.add(BatchNormalization())
     model.add(LeakyReLU(alpha=0.01))
     model.add(Conv2DTranspose(
                 64, kernel_size=3, strides=1, padding='same'))
+    model.add(BatchNormalization())
+    model.add(LeakyReLU(alpha=0.01))
+    model.add(Conv2DTranspose(
+                32, kernel_size=3, strides=1, padding='same'))
     model.add(BatchNormalization())
     model.add(LeakyReLU(alpha=0.01))
     model.add(Conv2DTranspose(
@@ -149,7 +159,7 @@ def sample_images(epoch):
     gen_imgs = 0.5 * gen_imgs + 0.5
     # Save
     save_images(list(gen_imgs),
-                   './images/{}'.format(directory),
+                   './images/{}/'.format(directory, timestamp),
                    '{}_{}'.format(label.replace(" ", ""), epoch))
     
 # Load training data, and save a sample of it to the directory
@@ -159,7 +169,7 @@ def process_source(root, directory):
     image_paths = list(image_root.glob('*.JPEG'))
     images = [image_to_np(image) for image in image_paths]
     save_images(images[:16],
-                   './images/{}'.format(directory),
+                   './images/{}/{}'.format(directory, timestamp),
                    'example')
     return np.array(images)
 
