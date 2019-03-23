@@ -39,7 +39,7 @@ def generator(z_dim):
     
     model = Sequential()
     model.add(Dense(512 * sx * sy, input_dim=z_dim))
-    model.add(Reshape((sx, sy, 256)))
+    model.add(Reshape((sx, sy, 512)))
     model.add(Conv2DTranspose(
                 256, kernel_size=3, strides=2, padding='same'))
     model.add(BatchNormalization())
@@ -50,6 +50,10 @@ def generator(z_dim):
     model.add(LeakyReLU(alpha=0.01))
     model.add(Conv2DTranspose(
                 64, kernel_size=3, strides=1, padding='same'))
+    model.add(BatchNormalization())
+    model.add(LeakyReLU(alpha=0.01))
+    model.add(Conv2DTranspose(
+                32, kernel_size=3, strides=1, padding='same'))
     model.add(BatchNormalization())
     model.add(LeakyReLU(alpha=0.01))
     model.add(Conv2DTranspose(
@@ -232,6 +236,7 @@ discriminator.compile(loss='binary_crossentropy',
                       optimizer=Adam(), metrics=['accuracy'])
 
 try:
+    pass
     discriminator.load_weights('models/{}_d.h5'.format(directory))
     print('Loaded discriminator weights.')
 except:
@@ -240,6 +245,7 @@ except:
 generator = generator(z_dim)
 
 try:
+    pass
     generator.load_weights('models/{}_g.h5'.format(directory))
     print('Loaded generator weights.')
 except:
