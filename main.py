@@ -13,20 +13,23 @@ import os
 import pathlib
 import cv2
 
-losses = []
-accuracies = []
+# Disables warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+plt.switch_backend('agg')
+
+# Set these based on your image size. Rows & cols should be a multiple of 4
 img_rows = 64
 img_cols = 64
 channels = 3
 img_shape = (img_rows, img_cols, channels)
 z_dim = 100
-plt.switch_backend('agg')
 
 # Take an image filename & return the normalized numpy array
 def image_to_np(filename):
     image = cv2.imread(str(filename))
     image = cv2.resize(image, dsize=(img_rows, img_cols), interpolation=cv2.INTER_CUBIC)
-    return image/127.5-1
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    return image/255
 
 # Definition of generator
 def generator(z_dim):
@@ -84,8 +87,8 @@ def noisy_labels(label, batch_size):
             np.random.normal(0.7, 1, mislabeled)], axis=0)
     return np.array(labels)
 
+# Train the model
 def train(X_train, epochs, batch_size, sample_interval):
-
     # Noisy labels effectively handicap the discriminator,
     # giving the generator a chance to learn.
     ones = noisy_labels(1, batch_size)
@@ -112,57 +115,52 @@ def train(X_train, epochs, batch_size, sample_interval):
         # Generator loss
         g_loss = combined.train_on_batch(z, ones)
 
-        print ('%d [D loss: %f, acc.: %.2f%%] [G loss: %f]' % (epoch, d_loss[0], 100*d_loss[1], g_loss))
-
-        losses.append((d_loss[0], g_loss))
-        accuracies.append(100*d_loss[1])
+        print ('%s %d [D loss: %f, acc.: %.2f%%] [G loss: %f]' % (word, epoch, d_loss[0], 100*d_loss[1], g_loss))
         
         if epoch % sample_interval == 0:
             sample_images(epoch)
 
-def sample_images(epoch, image_grid_rows=4, image_grid_columns=4):
+# Save a 4x4 grid of images
+def save_images(images, path, filename):
     plt.figure(figsize=(10,10))
-    
-    # Sample random noise
-    z = np.random.normal(0, 1, 
-              (image_grid_rows * image_grid_columns, z_dim))
-
-    # Generate images from random noise
-    gen_imgs = generator.predict(z)
-
-    # Rescale images to 0-1
-    gen_imgs = 0.5 * gen_imgs + 0.5
- 
-    for i in range(gen_imgs.shape[0]):
+    for i in range(16):
+        image = images[i]
         plt.subplot(4, 4, i+1)
-        image = gen_imgs[i, :, :, :]
-
-        try:
-            image = np.reshape(image, [img_cols, img_rows, channels])
-        except:
-            image = np.reshape(image, [img_cols, img_rows])
-
         plt.imshow(image, cmap='gray')
         plt.axis('off')
     plt.tight_layout()
-
-    if not os.path.exists('./images/{}'.format(directory)):
-        os.makedirs('./images/{}'.format(directory))
-    filename = './images/{}/sample_{}.png'.format(directory, epoch)
-
-    f = open('./images/{}/{}'.format(directory, word), 'w+')
-    f.close()
-    
+    if not os.path.exists(path):
+        os.makedirs(path)
+    filename = path + '/' + filename
     plt.savefig(filename)
     plt.close('all')
 
+# Generate & save 16 images
+def sample_images(epoch):
+    # Sample random noise
+    z = np.random.normal(0, 1, 
+              (16, z_dim))
+    # Generate images from random noise
+    gen_imgs = generator.predict(z)
+    # Rescale images to 0-1
+    gen_imgs = 0.5 * gen_imgs + 0.5
+    # Save
+    save_images(list(gen_imgs),
+                   './images/{}'.format(directory),
+                   'sample_{}'.format(epoch))
+    
+# Load training data, and save a sample of it to the directory
 def process_source(root, directory):
     data_root = pathlib.Path('./{}'.format(root))
     image_root = data_root / 'train/{}/images'.format(directory)
     image_paths = list(image_root.glob('*.JPEG'))
     images = [image_to_np(image) for image in image_paths]
+    save_images(images[:16],
+                   './images/{}'.format(directory),
+                   'example')
     return np.array(images)
 
+# Catches ctrl-c to gracefully save weights before exit
 def signal_handler(sig, frame):
     if not os.path.exists('./models'):
         os.makedirs('./models')
@@ -170,7 +168,7 @@ def signal_handler(sig, frame):
     generator.save_weights('models/{}_g.h5'.format(directory))
     print("Saved weights.")
     sys.exit(0)
-    
+
 # Read the imagenet sources to easily select a set of images
 def read_sources():
     # Get the list of words that correspond to each directory
@@ -191,27 +189,27 @@ def read_sources():
             word_map[word] = name
     return word_map
 
+def select_data():
+    source_map = read_sources()
+    os.system('clear')
+    print("\nThese are the tags you can target:\n")
+    print(list(source_map.keys()))
+    while(True):
+        try:
+            label = input("\nPick one: ")
+            directory = source_map[label]
+            break
+        except:
+            print("That didn't work, try another one.")
+    return directory, label
+
+#========================================================================================
+
 signal.signal(signal.SIGINT, signal_handler)
 
-## Get the user's input
-
-source_map = read_sources()
-directory = None
-word = None
-
-print("\n\n\n\nThese are the tags you can target:\n\n")
-print(list(source_map.keys()))
-
-while(True):
-    try:
-        word = input("Pick one: ")
-        directory = source_map[word]
-        break
-    except:
-        print("That didn't work, try another one.")
+directory, label = select_data()
 data = process_source('tiny-imagenet-200', directory)
 
-## Set up training
 
 discriminator = discriminator(img_shape)
 discriminator.compile(loss='binary_crossentropy', 
@@ -231,12 +229,9 @@ try:
 except:
     pass
 
-z = Input(shape=(100,))
-img = generator(z)
-
+image = generator(Input(shape=(z_dim,)))
 discriminator.trainable = False
-
-prediction = discriminator(img)
+prediction = discriminator(image)
 
 combined = Model(z, prediction)
 combined.compile(loss='binary_crossentropy', optimizer=Adam())
