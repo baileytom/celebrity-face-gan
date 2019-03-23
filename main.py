@@ -229,7 +229,8 @@ try:
 except:
     pass
 
-image = generator(Input(shape=(z_dim,)))
+z = Input(shape=(z_dim,))
+image = generator(z)
 discriminator.trainable = False
 prediction = discriminator(image)
 
