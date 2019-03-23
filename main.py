@@ -115,7 +115,7 @@ def train(X_train, epochs, batch_size, sample_interval):
         # Generator loss
         g_loss = combined.train_on_batch(z, ones)
 
-        print ('%s %d [D loss: %f, acc.: %.2f%%] [G loss: %f]' % (word, epoch, d_loss[0], 100*d_loss[1], g_loss))
+        print ('%s %d [D loss: %f, acc.: %.2f%%] [G loss: %f]' % (label, epoch, d_loss[0], 100*d_loss[1], g_loss))
         
         if epoch % sample_interval == 0:
             sample_images(epoch)
