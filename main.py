@@ -29,7 +29,7 @@ def image_to_np(filename):
     image = cv2.imread(str(filename))
     image = cv2.resize(image, dsize=(img_rows, img_cols), interpolation=cv2.INTER_CUBIC)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    return image/255
+    return image/127.5-1
 
 # Definition of generator
 def generator(z_dim):
@@ -88,7 +88,7 @@ def noisy_labels(label, batch_size):
     return np.array(labels)
 
 # Train the model
-def train(X_train, epochs, batch_size, sample_interval):
+def train(X_train, epochs, batch_size, sample_interval, save_interval):
     # Noisy labels effectively handicap the discriminator,
     # giving the generator a chance to learn.
     ones = noisy_labels(1, batch_size)
@@ -116,6 +116,9 @@ def train(X_train, epochs, batch_size, sample_interval):
         g_loss = combined.train_on_batch(z, ones)
 
         print ('%s %d [D loss: %f, acc.: %.2f%%] [G loss: %f]' % (label, epoch, d_loss[0], 100*d_loss[1], g_loss))
+
+        if epoch % save_interval == 0:
+            save_weights()
         
         if epoch % sample_interval == 0:
             sample_images(epoch)
@@ -147,7 +150,7 @@ def sample_images(epoch):
     # Save
     save_images(list(gen_imgs),
                    './images/{}'.format(directory),
-                   'sample_{}'.format(epoch))
+                   '{}_{}'.format(label.replace(" ", ""), epoch))
     
 # Load training data, and save a sample of it to the directory
 def process_source(root, directory):
@@ -162,13 +165,16 @@ def process_source(root, directory):
 
 # Catches ctrl-c to gracefully save weights before exit
 def signal_handler(sig, frame):
+    save_weights()
+    sys.exit(0)
+
+def save_weights():
     if not os.path.exists('./models'):
         os.makedirs('./models')
     discriminator.save_weights('models/{}_d.h5'.format(directory))
     generator.save_weights('models/{}_g.h5'.format(directory))
-    print("Saved weights.")
-    sys.exit(0)
-
+    print("\nSaved weights.")
+    
 # Read the imagenet sources to easily select a set of images
 def read_sources():
     # Get the list of words that correspond to each directory
@@ -240,6 +246,7 @@ combined.compile(loss='binary_crossentropy', optimizer=Adam())
 epochs = 1000000
 batch_size = 32
 sample_interval = 1000
+save_interval = 50000
 
 ## Train
-train(data, epochs, batch_size, sample_interval)
+train(data, epochs, batch_size, sample_interval, save_interval)
