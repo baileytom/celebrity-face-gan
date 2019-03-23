@@ -1,3 +1,4 @@
+import os
 from keras.datasets import mnist, cifar10
 from keras.layers import Input, Dense, Reshape, Flatten, Dropout
 from keras.layers import BatchNormalization, Activation, ZeroPadding2D
@@ -5,16 +6,19 @@ from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.convolutional import Conv2D, Conv2DTranspose
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
+import keras
 import matplotlib.pyplot as plt
 import signal
 import sys
 import numpy as np
-import os
 import pathlib
 import cv2
+import tensorflow as tf
+
+os.environ['CUDA_VISIBLE_DEVICES']='0'
 
 # Disables warnings
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+#os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 plt.switch_backend('agg')
 
 # Set these based on your image size. Rows & cols should be a multiple of 4
@@ -75,7 +79,7 @@ def discriminator(img_shape):
 
 # Create noisy labels
 def noisy_labels(label, batch_size):
-    mislabeled = batch_size // 10
+    mislabeled = batch_size // 8
     labels = []
     if label:
         labels = np.concatenate([
@@ -115,7 +119,8 @@ def train(X_train, epochs, batch_size, sample_interval, save_interval):
         # Generator loss
         g_loss = combined.train_on_batch(z, ones)
 
-        print ('%s %d [D loss: %f, acc.: %.2f%%] [G loss: %f]' % (label, epoch, d_loss[0], 100*d_loss[1], g_loss))
+        if epoch % (sample_interval/10) == 0:
+            print ('%s %d [D loss: %f, acc.: %.2f%%] [G loss: %f]' % (label, epoch, d_loss[0], 100*d_loss[1], g_loss))
 
         if epoch % save_interval == 0:
             save_weights()
@@ -195,8 +200,11 @@ def read_sources():
             word_map[word] = name
     return word_map
 
-def select_data():
+def select_data(inp=None):
     source_map = read_sources()
+    if inp:
+        directory = source_map[inp]
+        return directory, inp
     os.system('clear')
     print("\nThese are the tags you can target:\n")
     print(list(source_map.keys()))
@@ -213,7 +221,12 @@ def select_data():
 
 signal.signal(signal.SIGINT, signal_handler)
 
-directory, label = select_data()
+directory, label = None
+if len(sys.argv) == 2:
+    directory, label = select_data(sys.argv[1])
+else:
+    directory, label = select_data()
+    
 data = process_source('tiny-imagenet-200', directory)
 
 
@@ -244,7 +257,7 @@ combined = Model(z, prediction)
 combined.compile(loss='binary_crossentropy', optimizer=Adam())
 
 epochs = 1000000
-batch_size = 32
+batch_size = 16
 sample_interval = 1000
 save_interval = 50000
 
