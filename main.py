@@ -55,7 +55,7 @@ def generator(z_dim):
     model.add(Activation('tanh'))
     z = Input(shape=(z_dim,))
     img = model(z)
-return Model(z, img)
+    return Model(z, img)
 
 # Definition of discriminator
 def discriminator(img_shape):
