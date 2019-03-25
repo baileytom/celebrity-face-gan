@@ -89,7 +89,7 @@ def noisy_labels(label, batch_size):
         labels = np.concatenate([
             np.random.normal(0, 0.3, batch_size-mislabeled),
             np.random.normal(0.7, 1, mislabeled)], axis=0)
-    return np.random.shuffle(np.array(labels))
+    return np.array(labels)
 
 # Train the model
 def train(X_train, epochs, batch_size, sample_interval, save_interval):
@@ -101,7 +101,7 @@ def train(X_train, epochs, batch_size, sample_interval, save_interval):
     for epoch in range(epochs):
         
         ind = np.random.randint(0, X_train.shape[0], batch_size)
-        images = np.random.shuffle(X_train[ind])
+        images = X_train[ind]
 
         # Generate images
         z = np.random.normal(0, 1, (batch_size, 100))
@@ -254,10 +254,10 @@ prediction = discriminator(image)
 combined = Model(z, prediction)
 combined.compile(loss='binary_crossentropy', optimizer=Adam())
 
-epochs = 1000000
-batch_size = 500
-sample_interval = 100
-save_interval = 1000
+epochs = 10000000
+batch_size = 32
+sample_interval = 1000
+save_interval = 10000
 
 ## Train
 train(data, epochs, batch_size, sample_interval, save_interval)
