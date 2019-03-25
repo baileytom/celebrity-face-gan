@@ -55,7 +55,7 @@ def generator(z_dim):
     model.add(Activation('tanh'))
     z = Input(shape=(z_dim,))
     img = model(z)
-    return Model(z, img)
+return Model(z, img)
 
 # Definition of discriminator
 def discriminator(img_shape):
@@ -79,7 +79,7 @@ def discriminator(img_shape):
 
 # Create noisy labels
 def noisy_labels(label, batch_size):
-    mislabeled = batch_size // 8
+    mislabeled = batch_size // 5
     labels = []
     if label:
         labels = np.concatenate([
@@ -89,7 +89,7 @@ def noisy_labels(label, batch_size):
         labels = np.concatenate([
             np.random.normal(0, 0.3, batch_size-mislabeled),
             np.random.normal(0.7, 1, mislabeled)], axis=0)
-    return np.array(labels)
+    return np.random.shuffle(np.array(labels))
 
 # Train the model
 def train(X_train, epochs, batch_size, sample_interval, save_interval):
@@ -101,7 +101,7 @@ def train(X_train, epochs, batch_size, sample_interval, save_interval):
     for epoch in range(epochs):
         
         ind = np.random.randint(0, X_train.shape[0], batch_size)
-        images = X_train[ind]
+        images = np.random.shuffle(X_train[ind])
 
         # Generate images
         z = np.random.normal(0, 1, (batch_size, 100))
@@ -221,14 +221,12 @@ def select_data(inp=None):
 
 signal.signal(signal.SIGINT, signal_handler)
 
-directory, label = None
+directory, label = None, None
 if len(sys.argv) == 2:
-    directory, label = select_data(sys.argv[1])
+    directory, label = select_data(str(sys.argv[1]))
 else:
-    directory, label = select_data()
-    
+    directory, label = select_data()    
 data = process_source('tiny-imagenet-200', directory)
-
 
 discriminator = discriminator(img_shape)
 discriminator.compile(loss='binary_crossentropy', 
@@ -257,9 +255,9 @@ combined = Model(z, prediction)
 combined.compile(loss='binary_crossentropy', optimizer=Adam())
 
 epochs = 1000000
-batch_size = 16
-sample_interval = 1000
-save_interval = 50000
+batch_size = 500
+sample_interval = 100
+save_interval = 1000
 
 ## Train
 train(data, epochs, batch_size, sample_interval, save_interval)
