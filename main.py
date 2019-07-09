@@ -74,17 +74,17 @@ def discriminator(img_shape):
     return Model(img, prediction)
 
 # Create noisy labels
-def noisy_labels(label, batch_size):
+def noisy_labels(label, batch_size, ratio=0.4):
     mislabeled = batch_size // 10
     labels = []
     if label:
         labels = np.concatenate([
-            np.random.normal(0.7, 1, batch_size-mislabeled),
-            np.random.normal(0, 0.3, mislabeled)], axis=0)
+            np.random.normal(1-ratio, 1, batch_size-mislabeled),
+            np.random.normal(0, ratio, mislabeled)], axis=0)
     else:
         labels = np.concatenate([
-            np.random.normal(0, 0.3, batch_size-mislabeled),
-            np.random.normal(0.7, 1, mislabeled)], axis=0)
+            np.random.normal(0, ratio, batch_size-mislabeled),
+            np.random.normal(1-ratio, 1, mislabeled)], axis=0)
     return np.array(labels)
 
 # Train the model
@@ -244,8 +244,8 @@ combined = Model(z, prediction)
 combined.compile(loss='binary_crossentropy', optimizer=Adam())
 
 epochs = 1000000
-batch_size = 32
-sample_interval = 1000
+batch_size = 256
+sample_interval = 100
 save_interval = 50000
 
 ## Train
