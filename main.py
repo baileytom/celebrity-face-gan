@@ -1,7 +1,7 @@
 from keras.datasets import mnist, cifar10
 from keras.layers import Input, Dense, Reshape, Flatten, Dropout
 from keras.layers import BatchNormalization, Activation, ZeroPadding2D
-from keras.layers.advanced_activations import LeakyReLU
+from keras.layers.advanced_activations import LeakyReLU, ReLU
 from keras.layers.convolutional import Conv2D, Conv2DTranspose
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
@@ -14,7 +14,7 @@ import pathlib
 import cv2
 
 # Disables warnings
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 plt.switch_backend('agg')
 
 # Set these based on your image size. Rows & cols should be a multiple of 4
@@ -33,24 +33,33 @@ def image_to_np(filename):
 
 # Definition of generator
 def generator(z_dim):
-    sx, sy = np.int(img_rows/4), np.int(img_cols/4)
-    
     model = Sequential()
-    model.add(Dense(256 * sx * sy, input_dim=z_dim))
-    model.add(Reshape((sx, sy, 256)))
+
+    model.add(Dense(1024*4*4, input_dim=z_dim))
+    model.add(Reshape((4, 4, 1024)))
+    
     model.add(Conv2DTranspose(
-                128, kernel_size=3, strides=2, padding='same'))
+                512, kernel_size=8, strides=2, padding='same'))
     model.add(BatchNormalization())
-    model.add(LeakyReLU(alpha=0.01))
+    model.add(ReLU())
     model.add(Conv2DTranspose(
-                64, kernel_size=3, strides=1, padding='same'))
+                256, kernel_size=5, strides=2, padding='same'))
     model.add(BatchNormalization())
-    model.add(LeakyReLU(alpha=0.01))
+    model.add(ReLU())
     model.add(Conv2DTranspose(
-                3, kernel_size=3, strides=2, padding='same'))
+                128, kernel_size=5, strides=2, padding='same'))
+    model.add(BatchNormalization())
+    model.add(ReLU())
+    model.add(Conv2DTranspose(
+                3, kernel_size=5, strides=2, padding='same'))
     model.add(Activation('tanh'))
+
+    for layer in model.layers:
+        print(layer)
+    
     z = Input(shape=(z_dim,))
     img = model(z)
+    
     return Model(z, img)
 
 # Definition of discriminator
@@ -202,7 +211,7 @@ def select_data():
     print(list(source_map.keys()))
     while(True):
         try:
-            label = input("\nPick one: ")
+            label = "bikini"#input("\nPick one: ")
             directory = source_map[label]
             break
         except:
